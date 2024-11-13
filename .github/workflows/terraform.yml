@@ -43,20 +43,14 @@ jobs:
         id: tf-plan
         env:
           GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
-        run: terraform plan -input=false -out=plan
+        run: terraform plan -input=false -out=terraform_plan.zip
         continue-on-error: true
-
-      # - name: Upload Modules for jobs
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: terraform_modules
-      #     path: README.md
 
       - name: Upload Plan for jobs
         uses: actions/upload-artifact@v3
         with:
-          name: terraform_plan
-          path: plan
+          name: plan
+          path: terraform_plan.zip
           
   terragrunt:
     name: 'Terragrunt'
@@ -84,7 +78,7 @@ jobs:
       - name: Download Terraform Plan
         uses: actions/download-artifact@v3
         with:
-          name: terraform_plan
+          name: plan
           path: ./terraform_plan.zip
 
       - name: Run Script
