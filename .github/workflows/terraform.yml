@@ -1,0 +1,149 @@
+name: 'Terraform Workflow'
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Google Cloud credentials
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
+          touch ./gcloud.json
+          echo $GOOGLE_APPLICATION_CREDENTIALS > ./gcloud.json
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Init
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
+        run: terraform init
+      
+      - name: Terraform Plan
+        id: tf-plan
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
+        run: terraform plan -input=false -out=plan
+        continue-on-error: true
+
+      # - name: Upload Modules for jobs
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: terraform_modules
+      #     path: README.md
+
+      - name: Upload Plan for jobs
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform_plan
+          path: plan
+          
+  terragrunt:
+    name: 'Terragrunt'
+    runs-on: ubuntu-latest
+    environment: production
+    needs: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Google Cloud credentials
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
+          touch ./gcloud.json
+          echo $GOOGLE_APPLICATION_CREDENTIALS > ./gcloud.json
+
+      - name: Install Terraform and Terragrunt
+        run: |
+          curl -L -o terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v0.60.0/terragrunt_linux_amd64
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+      
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform_plan
+          path: ./terraform_plan.zip
+
+      - name: Run Script
+        env: 
+          GITHUB_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: modules/python-app/script.sh
+
+      - name: Terragrunt Plan
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
+        run: terragrunt run-all plan -input=false
+
+  terraform_apply:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [terraform, terragrunt]
+    if: needs.terragrunt.result == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Google Cloud credentials
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
+          touch ./gcloud.json
+          echo $GOOGLE_APPLICATION_CREDENTIALS > ./gcloud.json
+
+      - name: Terraform Init
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
+        run: |
+          terraform init -backend-config="bucket=$TF_VAR_gcs_bucket" \
+               -backend-config="project=$TF_VAR_gcs_project" \
+               -backend-config="prefix=$TF_VAR_gcs_prefix"
+      
+      - name: Terraform Plan
+        id: tf-plan
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
+        run: terraform plan -input=false -out=plan
+        continue-on-error: true
+
+      - name: Set KUBECONFIG Environment Variable
+        env:
+          KUBERNETES_MASTER: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          touch config
+          export KUBECONFIG=$HOME/config
+        
+      - name: Terraform Apply
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "./gcloud.json"
+          KUBERNETES_MASTER: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          
+          terraform apply "plan"
+
+
+        

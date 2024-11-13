@@ -1,0 +1,8 @@
+.terraform
+.terragrunt-cache
+.terraform.tf*
+terraform.tf*
+**/*terraform.tfstate*
+.vscode
+/terraform.tfstate
+plan 

@@ -1,0 +1,15 @@
+apiVersion: v1
+entries:
+  python_app:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2024-11-08T14:26:23.848301915+03:00"
+    description: A Helm chart for Kubernetes
+    digest: 24e007affac643935481cab3a802884b59beafcf70aed9c48f421f2bbe7f4801
+    name: python_app
+    type: application
+    urls:
+    - https://notlgbt.github.io/optimalcitytask/docs/python_app-0.1.0.tgz
+    # - https://github.com/notlgbt/OptimalCityTask/raw/main/docs/python_app-0.1.0.tgz
+    version: 0.1.0
+generated: "2024-11-08T14:26:23.847506226+03:00"
