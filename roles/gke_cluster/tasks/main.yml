@@ -1,0 +1,26 @@
+- name: Authenticate with GCP
+  command: gcloud auth activate-service-account --key-file={{ gcp_service_account_file }}
+  register: gcloud_auth
+  ignore_errors: yes
+
+- name: Set GCP project
+  command: gcloud config set project {{ gcp_project }}
+  when: gcloud_auth is succeeded
+
+- name: Create GKE cluster
+  command: >
+    gcloud container clusters create {{ gke_cluster_name }}
+    --zone {{ gcp_zone }}
+    --num-nodes {{ gke_num_nodes }}
+    --machine-type {{ gke_machine_type }}
+    --cluster-version {{ gke_cluster_version }}
+    --disk-size {{ gke_disk_size }}
+    --no-enable-basic-auth
+    --enable-ip-alias
+    
+  register: gke_create
+  when: gcloud_auth is succeeded
+
+- name: Configure kubectl to connect to GKE cluster
+  command: gcloud container clusters get-credentials {{ gke_cluster_name }} --zone {{ gcp_zone }}
+  when: gke_create is succeeded

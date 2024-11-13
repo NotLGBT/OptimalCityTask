@@ -1,0 +1,16 @@
+# - name: Retrieve specific directory from GitHub repository
+#   file:
+#     path: "./"  
+#     state: directory
+
+- name: Clone the specific directory from GitHub
+  ansible.builtin.git:
+    repo: "https://{{ github_token }}@github.com/NotLGBT/optimalcitytask.git"
+    dest: "./"
+    version: "main"
+    accept_hostkey: true
+    depth: 1
+  environment:
+    GITHUB_TOKEN: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+  args:
+    sparse: "modules/python-app"

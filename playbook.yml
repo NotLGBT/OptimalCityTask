@@ -1,0 +1,6 @@
+- hosts: localhost
+  gather_facts: false
+  roles:
+    - gke_cluster
+    - helm_deployment
+    - docker_deploy

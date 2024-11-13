@@ -1,0 +1,16 @@
+- name: Build Docker image
+  command: docker build -f {{ dockerfile_path }} -t {{ image_name }} {{ build_context }}
+  register: build_result
+  changed_when: "'Successfully' in build_result.stdout"
+
+- name: Tag Docker image
+  command: docker image tag {{ image_name }} {{ image_tag }}
+  when: build_result is succeeded
+
+- name: Login to GitHub Container Registry
+  command: echo {{ github_token }} | docker login ghcr.io -u {{ github_username }} --password-stdin
+  no_log: true
+
+- name: Push Docker image
+  command: docker push {{ image_tag }}
+  when: build_result is succeeded
